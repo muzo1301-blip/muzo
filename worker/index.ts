@@ -94,7 +94,93 @@ export default {
 				);
 			}
 		}
+		// MUZO API: Profil ve banka bilgilerini getir
+		if (
+			url.pathname === "/api/profile" &&
+			request.method === "GET"
+		) {
+			try {
+				const profile = await env.DB.prepare(
+					`
+					SELECT
+						id,
+						phone,
+						whatsapp,
+						email,
+						instagram,
+						location
+					FROM profiles
+					ORDER BY id
+					LIMIT 1
+					`,
+				).first<{
+					id: number;
+					phone: string | null;
+					whatsapp: string | null;
+					email: string | null;
+					instagram: string | null;
+					location: string | null;
+				}>();
 
+				if (!profile) {
+					return Response.json(
+						{
+							error: "Profil bulunamadı",
+						},
+						{
+							status: 404,
+						},
+					);
+				}
+
+				const bankResult = await env.DB.prepare(
+					`
+					SELECT
+						id,
+						profile_id,
+						bank_name,
+						iban
+					FROM bank_accounts
+					WHERE profile_id = ?
+					ORDER BY id
+					`,
+				)
+					.bind(profile.id)
+					.all<{
+						id: number;
+						profile_id: number;
+						bank_name: string;
+						iban: string;
+					}>();
+
+				return Response.json({
+					profile: {
+						id: profile.id,
+						phone: profile.phone ?? "",
+						whatsapp: profile.whatsapp ?? "",
+						email: profile.email ?? "",
+						instagram: profile.instagram ?? "",
+						location: profile.location ?? "",
+						banks: bankResult.results.map((bank) => ({
+							id: bank.id,
+							bankName: bank.bank_name,
+							iban: bank.iban,
+						})),
+					},
+				});
+			} catch (error) {
+				console.error("MUZO profil okuma hatası:", error);
+
+				return Response.json(
+					{
+						error: "Profil bilgileri okunamadı",
+					},
+					{
+						status: 500,
+					},
+				);
+			}
+		}
 		// WebSocket: Connect to workflow status updates
 		if (url.pathname === "/ws") {
 			const instanceId = url.searchParams.get("instanceId");
