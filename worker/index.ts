@@ -133,7 +133,7 @@ export default {
 					);
 				}
 
-				const bankResult = await env.DB.prepare(
+								const bankResult = await env.DB.prepare(
 					`
 					SELECT
 						id,
@@ -168,7 +168,7 @@ export default {
 						})),
 					},
 				});
-						} catch (error) {
+			} catch (error) {
 				const message =
 					error instanceof Error ? error.message : String(error);
 
@@ -184,11 +184,12 @@ export default {
 					},
 				);
 			}
-			}
 		}
+
 		// WebSocket: Connect to workflow status updates
 		if (url.pathname === "/ws") {
 			const instanceId = url.searchParams.get("instanceId");
+
 			if (!instanceId) {
 				return new Response("instanceId query parameter required", {
 					status: 400,
@@ -196,21 +197,35 @@ export default {
 			}
 
 			const upgradeHeader = request.headers.get("Upgrade");
+
 			if (upgradeHeader !== "websocket") {
-				return new Response("Expected Upgrade: websocket", { status: 426 });
+				return new Response("Expected Upgrade: websocket", {
+					status: 426,
+				});
 			}
 
 			try {
 				const doId = env.WORKFLOW_STATUS.idFromName(instanceId);
 				const stub = env.WORKFLOW_STATUS.get(doId);
+
 				return stub.fetch(request);
 			} catch {
-				return new Response("Failed to establish WebSocket connection", {
-					status: 500,
-				});
+				return new Response(
+					"Failed to establish WebSocket connection",
+					{
+						status: 500,
+					},
+				);
 			}
-		
+		}
 
-		return Response.json({ error: "Not Found" }, { status: 404 });
+		return Response.json(
+			{
+				error: "Not Found",
+			},
+			{
+				status: 404,
+			},
+		);
 	},
 } satisfies ExportedHandler<Env>;
