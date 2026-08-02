@@ -7,6 +7,8 @@ declare namespace Cloudflare {
 		durableNamespaces: "WorkflowStatusDO";
 	}
 	interface Env {
+  DB: D1Database;
+		
 		WORKFLOW_STATUS: DurableObjectNamespace<import("./worker/index").WorkflowStatusDO>;
 		MY_WORKFLOW: Workflow<Parameters<import("./worker/index").MyWorkflow['run']>[0]['payload']>;
 	}
