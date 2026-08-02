@@ -1,123 +1,389 @@
-import { useState, useEffect } from "react";
-import { WorkflowDiagram } from "./components/WorkflowDiagram";
-import { CodeDisplay } from "./components/CodeDisplay";
-import { BackgroundDots } from "./components/BackgroundDots";
-import { useWorkflowWebSocket } from "./hooks/useWorkflowWebSocket";
-import { WORKFLOW_STEPS } from "./types";
+import { useEffect, useState } from "react";
+
+type BankAccount = {
+  id: number;
+  bankName: string;
+  iban: string;
+};
+
+type ProfileData = {
+  phone: string;
+  whatsapp: string;
+  email: string;
+  instagram: string;
+  location: string;
+  banks: BankAccount[];
+};
+
+const defaultProfile: ProfileData = {
+  phone: "0534 969 03 91",
+  whatsapp: "905349690391",
+  email: "",
+  instagram: "",
+  location: "",
+  banks: [
+    {
+      id: 1,
+      bankName: "İş Bankası",
+      iban: "TR370006400000143730182793",
+    },
+    {
+      id: 2,
+      bankName: "Yapı Kredi",
+      iban: "TR320006701000000034209676",
+    },
+  ],
+};
 
 function App() {
-	const [instanceId, setInstanceId] = useState<string | null>(null);
-	const [isStarting, setIsStarting] = useState(false);
-	const workflowState = useWorkflowWebSocket(instanceId);
+  const [profile, setProfile] = useState<ProfileData>(defaultProfile);
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "banks" | "preview"
+  >("profile");
+  const [savedMessage, setSavedMessage] = useState("");
 
-	useEffect(() => {
-		if (workflowState.workflowStatus === "completed") {
-			const timer = setTimeout(() => {
-				setInstanceId(null);
-			}, 1500);
-			return () => clearTimeout(timer);
-		}
-	}, [workflowState.workflowStatus]);
+  useEffect(() => {
+    const savedProfile = localStorage.getItem("muzo-profile");
 
-	useEffect(() => {
-		if (
-			workflowState.workflowStatus === "running" &&
-			workflowState.currentStep
-		) {
-			setIsStarting(false);
-		}
-	}, [workflowState.workflowStatus, workflowState.currentStep]);
+    if (!savedProfile) return;
 
-	const handleStartWorkflow = async () => {
-		setIsStarting(true);
+    try {
+      setProfile(JSON.parse(savedProfile) as ProfileData);
+    } catch {
+      localStorage.removeItem("muzo-profile");
+    }
+  }, []);
 
-		try {
-			const response = await fetch("/api/workflow/start", {
-				method: "POST",
-			});
+  const saveProfile = () => {
+    localStorage.setItem("muzo-profile", JSON.stringify(profile));
+    setSavedMessage("Bilgiler kaydedildi.");
 
-			if (!response.ok) {
-				throw new Error("Failed to start workflow");
-			}
+    window.setTimeout(() => {
+      setSavedMessage("");
+    }, 2500);
+  };
 
-			const data = await response.json();
-			setInstanceId(data.instanceId);
-		} catch {
-			alert("Failed to start workflow. Please try again.");
-			setIsStarting(false);
-		}
-	};
+  const addBank = () => {
+    setProfile((current) => ({
+      ...current,
+      banks: [
+        ...current.banks,
+        {
+          id: Date.now(),
+          bankName: "",
+          iban: "",
+        },
+      ],
+    }));
+  };
 
-	return (
-		<div className="min-h-screen bg-neutral-50/30 dark:bg-neutral-950 flex flex-col relative">
-			{/* Background dots across entire page */}
-			<div className="absolute inset-0 text-neutral-200/50 dark:text-neutral-700/40 overflow-hidden">
-				<BackgroundDots />
-			</div>
+  const updateBank = (
+    id: number,
+    field: "bankName" | "iban",
+    value: string,
+  ) => {
+    setProfile((current) => ({
+      ...current,
+      banks: current.banks.map((bank) =>
+        bank.id === id ? { ...bank, [field]: value } : bank,
+      ),
+    }));
+  };
 
-			{/* Minimal Integrated Header */}
-			<header className="px-6 pt-6 pb-4 relative z-10">
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-3">
-						<svg
-							role="img"
-							viewBox="0 0 460 271.2"
-							aria-hidden="true"
-							className="h-5 w-auto opacity-90"
-						>
-							<path
-								fill="#FBAD41"
-								d="M328.6,125.6c-0.8,0-1.5,0.6-1.8,1.4l-4.8,16.7c-2.1,7.2-1.3,13.8,2.2,18.7c3.2,4.5,8.6,7.1,15.1,7.4l26.2,1.6c0.8,0,1.5,0.4,1.9,1c0.4,0.6,0.5,1.5,0.3,2.2c-0.4,1.2-1.6,2.1-2.9,2.2l-27.3,1.6c-14.8,0.7-30.7,12.6-36.3,27.2l-2,5.1c-0.4,1,0.3,2,1.4,2h93.8c1.1,0,2.1-0.7,2.4-1.8c1.6-5.8,2.5-11.9,2.5-18.2c0-37-30.2-67.2-67.3-67.2C330.9,125.5,329.7,125.5,328.6,125.6z"
-							/>
-							<path
-								fill="#F6821F"
-								d="M292.8,204.4c2.1-7.2,1.3-13.8-2.2-18.7c-3.2-4.5-8.6-7.1-15.1-7.4l-123.1-1.6c-0.8,0-1.5-0.4-1.9-1s-0.5-1.4-0.3-2.2c0.4-1.2,1.6-2.1,2.9-2.2l124.2-1.6c14.7-0.7,30.7-12.6,36.3-27.2l7.1-18.5c0.3-0.8,0.4-1.6,0.2-2.4c-8-36.2-40.3-63.2-78.9-63.2c-35.6,0-65.8,23-76.6,54.9c-7-5.2-15.9-8-25.5-7.1c-17.1,1.7-30.8,15.4-32.5,32.5c-0.4,4.4-0.1,8.7,0.9,12.7c-27.9,0.8-50.2,23.6-50.2,51.7c0,2.5,0.2,5,0.5,7.5c0.2,1.2,1.2,2.1,2.4,2.1h227.2c1.3,0,2.5-0.9,2.9-2.2L292.8,204.4z"
-							/>
-						</svg>
-						<div className="w-px h-4 bg-neutral-300/50 dark:bg-neutral-600/50" />
-						<h1 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-							Workflows Starter Template
-						</h1>
-					</div>
+  const removeBank = (id: number) => {
+    setProfile((current) => ({
+      ...current,
+      banks: current.banks.filter((bank) => bank.id !== id),
+    }));
+  };
 
-					<a
-						href="https://developers.cloudflare.com/workflows"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
-					>
-						Documentation →
-					</a>
-				</div>
-			</header>
+  return (
+    <div className="min-h-screen bg-neutral-950 text-white">
+      <header className="border-b border-neutral-800 bg-black/70 px-5 py-4 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.35em] text-amber-400">
+              MUZO
+            </p>
+            <h1 className="mt-1 text-xl font-semibold">
+              Smart Card Yönetim Paneli
+            </h1>
+          </div>
 
-			{/* Main content - unified canvas */}
-			<main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative z-10">
-				{/* Left side - Code (responsive width) */}
-				<div className="w-full lg:w-[60%] overflow-hidden px-6 pb-6">
-					<CodeDisplay
-						currentStep={workflowState.currentStep}
-						workflowStatus={workflowState.workflowStatus}
-						onStartWorkflow={handleStartWorkflow}
-						isStarting={isStarting}
-					/>
-				</div>
+          <div className="rounded-full border border-green-900 bg-green-950/50 px-3 py-1 text-xs text-green-400">
+            ● Sistem aktif
+          </div>
+        </div>
+      </header>
 
-				{/* Right side - Diagram (responsive width) */}
-				<div className="flex-1 overflow-hidden px-6 lg:pl-8 lg:pr-6 pb-6">
-					<WorkflowDiagram
-						steps={WORKFLOW_STEPS}
-						stepStatuses={workflowState.stepStatuses}
-						currentStep={workflowState.currentStep}
-						instanceId={instanceId}
-						workflowStatus={workflowState.workflowStatus}
-						onStartWorkflow={handleStartWorkflow}
-						isStarting={isStarting}
-					/>
-				</div>
-			</main>
-		</div>
-	);
+      <main className="mx-auto grid max-w-6xl gap-6 px-5 py-6 lg:grid-cols-[220px_1fr]">
+        <aside className="h-fit rounded-3xl border border-neutral-800 bg-neutral-900 p-3">
+          <nav className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("profile")}
+              className={`w-full rounded-2xl px-4 py-3 text-left ${
+                activeTab === "profile"
+                  ? "bg-amber-500 font-semibold text-black"
+                  : "text-neutral-300 hover:bg-neutral-800"
+              }`}
+            >
+              Profil bilgileri
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("banks")}
+              className={`w-full rounded-2xl px-4 py-3 text-left ${
+                activeTab === "banks"
+                  ? "bg-amber-500 font-semibold text-black"
+                  : "text-neutral-300 hover:bg-neutral-800"
+              }`}
+            >
+              Banka hesapları
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("preview")}
+              className={`w-full rounded-2xl px-4 py-3 text-left ${
+                activeTab === "preview"
+                  ? "bg-amber-500 font-semibold text-black"
+                  : "text-neutral-300 hover:bg-neutral-800"
+              }`}
+            >
+              Profil ön izlemesi
+            </button>
+          </nav>
+        </aside>
+
+        <section className="rounded-3xl border border-neutral-800 bg-neutral-900 p-5 sm:p-7">
+          {activeTab === "profile" && (
+            <div>
+              <div className="mb-7">
+                <p className="text-sm text-amber-400">Profil ayarları</p>
+                <h2 className="mt-1 text-2xl font-semibold">
+                  İletişim bilgileri
+                </h2>
+                <p className="mt-2 text-sm text-neutral-400">
+                  Kartın yönlendirdiği sayfadaki iletişim bilgilerini düzenle.
+                </p>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <InputField
+                  label="Telefon numarası"
+                  value={profile.phone}
+                  onChange={(value) =>
+                    setProfile({ ...profile, phone: value })
+                  }
+                  placeholder="0534 969 03 91"
+                />
+
+                <InputField
+                  label="WhatsApp numarası"
+                  value={profile.whatsapp}
+                  onChange={(value) =>
+                    setProfile({ ...profile, whatsapp: value })
+                  }
+                  placeholder="905349690391"
+                />
+
+                <InputField
+                  label="E-posta"
+                  value={profile.email}
+                  onChange={(value) =>
+                    setProfile({ ...profile, email: value })
+                  }
+                  placeholder="ornek@email.com"
+                />
+
+                <InputField
+                  label="Instagram bağlantısı"
+                  value={profile.instagram}
+                  onChange={(value) =>
+                    setProfile({ ...profile, instagram: value })
+                  }
+                  placeholder="https://instagram.com/..."
+                />
+
+                <div className="md:col-span-2">
+                  <InputField
+                    label="Konum bağlantısı"
+                    value={profile.location}
+                    onChange={(value) =>
+                      setProfile({ ...profile, location: value })
+                    }
+                    placeholder="Google Haritalar bağlantısı"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "banks" && (
+            <div>
+              <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-amber-400">Ödeme bilgileri</p>
+                  <h2 className="mt-1 text-2xl font-semibold">
+                    Banka hesapları
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addBank}
+                  className="rounded-2xl bg-amber-500 px-4 py-3 font-semibold text-black hover:bg-amber-400"
+                >
+                  + Yeni banka ekle
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {profile.banks.map((bank) => (
+                  <article
+                    key={bank.id}
+                    className="rounded-2xl border border-neutral-700 bg-neutral-950 p-4"
+                  >
+                    <div className="grid gap-4 md:grid-cols-[1fr_2fr_auto] md:items-end">
+                      <InputField
+                        label="Banka adı"
+                        value={bank.bankName}
+                        onChange={(value) =>
+                          updateBank(bank.id, "bankName", value)
+                        }
+                        placeholder="Banka adı"
+                      />
+
+                      <InputField
+                        label="IBAN"
+                        value={bank.iban}
+                        onChange={(value) =>
+                          updateBank(bank.id, "iban", value.toUpperCase())
+                        }
+                        placeholder="TR..."
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => removeBank(bank.id)}
+                        className="h-12 rounded-xl border border-red-900 bg-red-950/40 px-4 text-red-400 hover:bg-red-950"
+                      >
+                        Sil
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "preview" && (
+            <div>
+              <div className="mb-7">
+                <p className="text-sm text-amber-400">Canlı ön izleme</p>
+                <h2 className="mt-1 text-2xl font-semibold">
+                  Ziyaretçinin göreceği profil
+                </h2>
+              </div>
+
+              <div className="mx-auto max-w-sm rounded-[32px] border border-neutral-700 bg-black p-5 shadow-2xl">
+                <div className="rounded-[26px] border border-neutral-800 bg-gradient-to-b from-neutral-800 to-black p-7 text-center">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-amber-500/50 bg-neutral-900 text-4xl">
+                    🦅
+                  </div>
+
+                  <h3 className="mt-4 text-3xl font-semibold tracking-[0.25em] text-amber-400">
+                    MUZO
+                  </h3>
+
+                  <p className="mt-2 text-xs tracking-[0.25em] text-neutral-400">
+                    PREMIUM SMART CARD
+                  </p>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <PreviewButton label="Ara" value={profile.phone} />
+                  <PreviewButton label="WhatsApp" value={profile.whatsapp} />
+                  <PreviewButton
+                    label="Ödeme Yap"
+                    value={`${profile.banks.length} banka hesabı`}
+                  />
+
+                  {profile.email && (
+                    <PreviewButton label="E-posta" value={profile.email} />
+                  )}
+
+                  {profile.instagram && (
+                    <PreviewButton
+                      label="Instagram"
+                      value={profile.instagram}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-8 flex items-center justify-between border-t border-neutral-800 pt-5">
+            <p className="text-sm text-green-400">{savedMessage}</p>
+
+            <button
+              type="button"
+              onClick={saveProfile}
+              className="rounded-2xl bg-amber-500 px-6 py-3 font-semibold text-black hover:bg-amber-400"
+            >
+              Değişiklikleri kaydet
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+type InputFieldProps = {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+};
+
+function InputField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: InputFieldProps) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm text-neutral-300">{label}</span>
+
+      <input
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-12 w-full rounded-xl border border-neutral-700 bg-neutral-950 px-4 text-white outline-none transition focus:border-amber-500"
+      />
+    </label>
+  );
+}
+
+function PreviewButton({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3">
+      <p className="font-semibold">{label}</p>
+      <p className="mt-1 truncate text-xs text-neutral-400">{value}</p>
+    </div>
+  );
 }
 
 export default App;
