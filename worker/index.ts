@@ -168,17 +168,22 @@ export default {
 						})),
 					},
 				});
-			} catch (error) {
-				console.error("MUZO profil okuma hatası:", error);
+						} catch (error) {
+				const message =
+					error instanceof Error ? error.message : String(error);
+
+				console.error("MUZO profil okuma hatası:", message);
 
 				return Response.json(
 					{
 						error: "Profil bilgileri okunamadı",
+						details: message,
 					},
 					{
 						status: 500,
 					},
 				);
+			}
 			}
 		}
 		// WebSocket: Connect to workflow status updates
