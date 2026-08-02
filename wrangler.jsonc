@@ -12,6 +12,13 @@
   "not_found_handling": "single-page-application",
   "run_worker_first": ["/api/*"]
 },
+"d1_databases": [
+  {
+    "binding": "DB",
+    "database_name": "muzo-db",
+    "database_id": "e3d97b45-e8a2-44bc-80ff-6a80efb68075"
+  }
+],
 	"observability": {
 		"enabled": true
 	},
